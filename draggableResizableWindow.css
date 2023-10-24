@@ -3,7 +3,7 @@
     background-color: #000000;
     border: 1px solid #d3d3d3;
     text-align: center;
-    min-height: 225px;
+    min-height: 325px;
     min-width: 450px;
     max-height: 1200px;
     max-width: 240000px;
@@ -76,11 +76,11 @@
 
   #my-video {
     /* This makes the video take the full size of the parent div */
-    top:0;
-    min-width:350px;
-    min-height:197px;
+
+    min-height: 325px;
+    min-width: 450px;
     width: 100%;
-    height: 90%;
+    height: 80%;
     /* This makes the video cover the entire area of the parent div without distorting its aspect ratio */
     object-fit: cover !important
   }
@@ -161,12 +161,14 @@
   }
 
   .dropdown-toggle {
-    background-color: #4CAF50;
+    background-color: #303130;
     color: white;
-    padding: 16px;
+    padding-bottom: 10px;
     font-size: 16px;
     border: none;
     cursor: pointer;
+    width: 100%;
+    text-align: center;
   }
 
   /* Style the dropdown menu */

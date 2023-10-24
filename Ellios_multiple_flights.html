@@ -64,7 +64,7 @@
         <div class="popup">
             <div class="popup-header">Click here to move</div>
             <!-- Create a div element with id dropdown-menu -->
-            <select id="dropdown">
+            <select id="dropdown" class="dropdown-toggle">
                 <option disabled selected>Select a flight</option>
             </select>
 
@@ -171,6 +171,9 @@
                     }/${
                         currentFlight.name
                     }.mp4`);
+
+                    viewer.scene.view.setView(currentFlight.camera[0],currentFlight.camera[1]);
+
                 }
 
 
@@ -389,9 +392,8 @@
 
 
                     // /////CAMERA POSITION////////
-                    viewer.scene.view.setView([
-                        -2.689, -28.716, -2.933
-                    ], [8.274, 34.784, -5.017]);
+
+                    viewer.scene.view.setView(currentFlight.camera[0],currentFlight.camera[1]);
 
                 }
 
