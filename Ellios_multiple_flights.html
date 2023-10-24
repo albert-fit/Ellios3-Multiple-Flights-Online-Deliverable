@@ -67,35 +67,33 @@
             <select id="dropdown">
                 <option disabled selected>Select a flight</option>
             </select>
-            <button id="save-button">save project</button>
 
             <video id="my-video" class="video-js" controls preload="auto" width="640" height="264" data-setup="{}">
 
                 <p class="vjs-no-js">
                     To view this video please enable JavaScript, and consider upgrading to a
-                                              web browser that
+                                                                  web browser that
                     <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
                 </p>
             </div>
 
             <!-- This is where the Potree Javascript code is defined -->
             <script type="module">
-                var saveButton = document.getElementById("save-button");
 
+                /*
+                Import the global variable ElliosData from the Data.js file.
+                This variable contains the data for all the flights, such as:
+                    name: the name of the flight
+                    url: the url of the metadata.json file
+                    liveTraj: the live trajectory of the flight
+                    rotation: the rotation of the point cloud
+                */
                 var elliosData = window.ElliosData;
 
-                var currentFlight = elliosData[0];
-                // Get the array from the window object
+
+                // /////////////////////////////////////////DROPDOWN MENU///////////////////////////////////////////
                 var dropdown = document.getElementById("dropdown");
-
-                function changeVideoSource(newSrc) {
-                    const videoElement = videojs('my-video'); // Use videojs to select the video element
-                    videoElement.src(newSrc); // Set the new video source
-                    videoElement.load(); // Load the new source
-                    videoElement.play(); // Start playing the new video
-                }
-
-                changeVideoSource(`data/F5901/${currentFlight.name}/${currentFlight.name}.mp4`);
+                dropdown.onchange = selectFlight;
 
                 // Loop through the array and create an option element for each item
                 for (var i = 0; i < elliosData.length; i++) {
@@ -104,50 +102,89 @@
                     option.text = elliosData[i].name; // Use the name property of the item as the text
                     document.getElementById("dropdown").appendChild(option); // Append the option to the select element
                 }
+                // Call the function when the selected option changes
+
+
+                // /////////////////////////////////////////VIDEO CHANGE///////////////////////////////////////////
+                // Define a function that will change the video source
+                function changeVideoSource(newSrc) {
+                    const videoElement = videojs('my-video'); // Use videojs to select the video element
+                    videoElement.src(newSrc); // Set the new video source
+                    videoElement.load(); // Load the new source
+                    videoElement.play(); // Start playing the new video
+                }
+
+
+                // /////////////////////////////////////////TRAJECTORY CHANGE///////////////////////////////////////
+                // Define a function that will change the trajectory source
+                function sceneTrajectory(currentFlight){
+                    path = currentFlight.liveTraj.map(x => {
+                        return [
+                            (x.pos_x), (x.pos_y),
+                            (x.pos_z + currentFlight.rotation.z)
+                        ]
+                    }).map(v => new THREE.Vector3(...v));
+                    let animationPath = new Potree.AnimationPath(path);
+                    animationPath.closed = true;
+
+                    { // render the path
+                        let geometry = animationPath.getGeometry();
+                        let material = new THREE.LineBasicMaterial();
+                        let line = new THREE.Line(geometry, material, {closed: animationPath.closed});
+                        viewer.scene.scene.add(line);
+                    }
+                    // Add the box and cone on the path
+                    findClosestTime();
+                    viewer.scene.scene.add(box);
+                    viewer.scene.scene.add(cone);
+                }
+
+                // /////////////////////////////////////////FLIGHT CHANGE///////////////////////////////////////////
                 // Define a function that changes the currentFlight variable based on the selected option
                 function selectFlight() {
                     var index = document.getElementById("dropdown").value; // Get the value of the selected option
                     currentFlight = window.ElliosData[index]; // Assign the corresponding item to the currentFlight variable
-                    for (let i = 0; i < viewer.scene.pointclouds.length; i++) {
+                    for (let i = 0; i < viewer.scene.pointclouds.length; i++) { // If the name of the point cloud matches the name of the current flight, make it visible
                         if (viewer.scene.pointclouds[i].name === currentFlight.name) {
                             viewer.scene.pointclouds[i].visible = true;
                             console.log(viewer.scene.pointclouds[i])
-                        
+
                         } else {
                             viewer.scene.pointclouds[i].visible = false;
                         }
                     }
+
+                    // remove the previous trajectory
                     viewer.scene.scene.children = []
 
+                    //add new trajectory
+                    sceneTrajectory(currentFlight);
+
+                    // change the description of the viewer based on the current flight name
                     viewer.setDescription(`${
                         currentFlight.name
                     }`);
-                    path = currentFlight.liveTraj.map(x => {
-                            return [
-                                (x.pos_x), (x.pos_y),
-                                (x.pos_z + currentFlight.rotation.z)
-                            ]
-                        }).map(v => new THREE.Vector3(...v));
-                        let animationPath = new Potree.AnimationPath(path);
-                        animationPath.closed = true;
+                    
 
-                        { // render the path
-                            let geometry = animationPath.getGeometry();
-                            let material = new THREE.LineBasicMaterial();
-                            let line = new THREE.Line(geometry, material, {closed: animationPath.closed});
-                            viewer.scene.scene.add(line);
-                        }
-                        // Add the box and cone on the path
-                        findClosestTime();
-                        viewer.scene.scene.add(box);
-                        viewer.scene.scene.add(cone);
-
-                    changeVideoSource(`data/F5901/${currentFlight.name}/${currentFlight.name}.mp4`);
-                   
-
+                    changeVideoSource(`data/F5901/${
+                        currentFlight.name
+                    }/${
+                        currentFlight.name
+                    }.mp4`);
                 }
-                dropdown.onchange = selectFlight;
-                // Call the function when the selected option changes
+
+
+                // /////////////////////////////////////////INITIAL VALUES///////////////////////////////////////////
+                var currentFlight = elliosData[0];
+                changeVideoSource(`data/F5901/${
+                    currentFlight.name
+                }/${
+                    currentFlight.name
+                }.mp4`);
+
+
+                // /////////////////////////////////////////POTREE///////////////////////////////////////////////////
+                // ////////////////////////////////////////SECTION//////////////////////////////////////////////////
 
 
                 // THREE is required to be able to access objects such as Vector3, Cone and material
@@ -184,8 +221,6 @@
                 viewer.setDescription(`${
                     currentFlight.name
                 }`);
-               
-
 
                 // Here is where we load the menu and the sidebar into the viewer.
                 viewer.loadGUI(() => {
@@ -194,91 +229,6 @@
                     $("#menu_tools").next().show();
                     viewer.toggleSidebar();
                 });
-
-
-                // ////DATA///////
-                // let flights = [
-                //     {
-                //         name: "flight1",
-                //         url: "data/F5901/085-north-F1-00/085-north-F1-00/metadata.json",
-                //         trajFile: "data/F5901/085-north-F1-00/085-north-F1-00.js",
-                //         trajVar: "flight_085_north_F1_00",
-                //         video_offset: 202.81740399999998,
-                //     }, {
-                //         name: "flight2",
-                //         url: "data/F5901/086-north-F1-01/086-north-F1-01/metadata.json",
-                //         trajFile: "data/F5901/086-north-F1-01/086-north-F1-01.js",
-                //         trajVar: "flight_086_north_F1_01",
-                //         video_offset: 63.303923999999995
-                //     }, {
-                //         name: "flight3",
-                //         url: "data/F5901/087-north-F1-02/087-north-F1-02/metadata.json",
-                //         trajFile: "data/F5901/087-north-F1-02/087-north-F1-02.js",
-                //         trajVar: "flight_087_north_F1_02",
-                //         video_offset: 65.050608
-                //     }, {
-                //         name: "flight4",
-                //         url: "data/F5901/088-north-F1-03/088-north-F1-03/metadata.json",
-                //         trajFile: "data/F5901/088-north-F1-03/088-north-F1-03.js",
-                //         trajVar: "flight_088_north_F1_03",
-                //         video_offset: 62.687107,
-                //         rotation: {
-                //                         w: 0.7071067690849304,
-                //                         x: 0,
-                //                         y: 0,
-                //                         z: -0.7071067690849304
-                //                     },
-                //     }, {
-                //         name: "flight5",
-                //         url: "data/F5901/089-north-F1-04/089-north-F1-04/metadata.json",
-                //         trajFile: "data/F5901/089-north-F1-04/089-north-F1-04.js",
-                //         trajVar: "flight_089_north_F1_04",
-                //         video_offset: 68.512906
-                //     }, {
-                //         name: "flight6",
-                //         url: "data/F5901/090-north-F1-05/090-north-F1-05/metadata.json",
-                //         trajFile: "data/F5901/090-north-F1-05/090-north-F1-05.js",
-                //         trajVar: "flight_090_north_F1_05",
-                //         video_offset: 61.969958999999996
-                //     }, {
-                //         name: "flight7",
-                //         url: "data/F5901/091-southrhs-F1-00/091-southrhs-F1-00/metadata.json",
-                //         trajFile: "data/F5901/091-southrhs-F1-00/091-southrhs-F1-00.js",
-                //         trajVar: "flight_091_southrhs_F1_00",
-                //         video_offset: 137.319501
-                //     }, {
-                //         name: "flight8",
-                //         url: "data/F5901/092-southrhs-F1-01/092-southrhs-F1-01/metadata.json",
-                //         trajFile: "data/F5901/092-southrhs-F1-01/092-southrhs-F1-01.js",
-                //         trajVar: "flight_092_southrhs_F1_01",
-                //         video_offset: 63.312177
-                //     }, {
-                //         name: "flight9",
-                //         url: "data/F5901/093-southrhs-F1-02/093-southrhs-F1-02/metadata.json",
-                //         trajFile: "data/F5901/093-southrhs-F1-02/093-southrhs-F1-02.js",
-                //         trajVar: "flight_093_southrhs_F1_02",
-                //         video_offset: 65.20956
-                //     }, {
-                //         name: "flight10",
-                //         url: "data/F5901/094-southrhs-F1-03/094-southrhs-F1-03/metadata.json",
-                //         trajFile: "data/F5901/094-southrhs-F1-03/094-southrhs-F1-03.js",
-                //         trajVar: "flight_094_southrhs_F1_03",
-                //         video_offset: 64.62226199999999
-                //     }, {
-                //         name: "flight11",
-                //         url: "data/F5901/095-southrhs-F1-04/095-southrhs-F1-04/metadata.json",
-                //         trajFile: "data/F5901/095-southrhs-F1-04/095-southrhs-F1-04.js",
-                //         trajVar: "flight_095_southrhs_F1_04",
-                //         video_offset: 60.816717
-                //     }, {
-                //         name: "flight12",
-                //         url: "data/F5901/096-southrhs-F1-05/096-southrhs-F1-05/metadata.json",
-                //         trajFile: "data/F5901/096-southrhs-F1-05/096-southrhs-F1-05.js",
-                //         trajVar: "flight_096_southrhs_F1_05",
-                //         video_offset:72.51141
-                //     }
-                // ]
-                // // To represent the drone camera, we create a cone and a cube. We can do this by using the TREE library we imported earlier.
 
                 // The documentation for the cone: https://threejs.org/docs/#api/en/geometries/ConeGeometry
                 let cone = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4, 1.5, true, Math.PI / 4), new THREE.MeshBasicMaterial({wireframe: true}));
@@ -332,10 +282,10 @@
                     box.rotation.x = Math.PI * closestTime.rot_x;
                     box.rotation.y = Math.PI * closestTime.rot_y;
                     box.rotation.z = (Math.PI * closestTime.rot_z + Math.PI);
-
+                    
                     cone.rotation.x = Math.PI * closestTime.rot_x;
                     cone.rotation.y = Math.PI * closestTime.rot_y;
-                    cone.rotation.z = (Math.PI * closestTime.rot_z + Math.PI/2);
+                    cone.rotation.z = (Math.PI * closestTime.rot_z + Math.PI / 2);
                     //
                     //
 
@@ -396,7 +346,7 @@
                                 material.minSize = 0.2;
                                 (flight.name === currentFlight.name) ? pointcloud.visible = true : pointcloud.visible = false;
                                 // change the position, rotation and scale of the point cloud to match the position of the Laser Scan Point cloud
-                              
+
                                 // pointcloud.scale.set(1, 0.995, 1)
 
                             }
@@ -417,29 +367,9 @@
 
 
                     // //////LIVE TRAJECTORY////////
-                    // if there is a live trajectory, create an animation path and make the light follow it
+                    // if there is a live trajectory, create an animation path and make the camera follow it
                     {
-                        // create Animation Path & make light follow it
-                        // create a function that takes the array of objects 'path' and finds the object that matches the path.timestamp to currentTime
-                        path = currentFlight.liveTraj.map(x => {
-                            return [
-                                (x.pos_x), (x.pos_y),
-                                (x.pos_z + currentFlight.rotation.z)
-                            ]
-                        }).map(v => new THREE.Vector3(...v));
-                        let animationPath = new Potree.AnimationPath(path);
-                        animationPath.closed = true;
-
-                        { // render the path
-                            let geometry = animationPath.getGeometry();
-                            let material = new THREE.LineBasicMaterial();
-                            let line = new THREE.Line(geometry, material, {closed: animationPath.closed});
-                            viewer.scene.scene.add(line);
-                        }
-                        // Add the box and cone on the path
-                        findClosestTime();
-                        viewer.scene.scene.add(box);
-                        viewer.scene.scene.add(cone);
+                       sceneTrajectory(currentFlight);
                     }
 
 
@@ -460,10 +390,12 @@
 
                     // /////CAMERA POSITION////////
                     viewer.scene.view.setView([
-                    -2.689, -28.716, -2.933
+                        -2.689, -28.716, -2.933
                     ], [8.274, 34.784, -5.017]);
 
                 }
+
+                // /////////////////////////////////////////INITIAL POINT CLOUD LOAD///////////////////////////////////////////
                 load(currentFlight);
             </script>
         </body>
