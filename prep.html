@@ -165,6 +165,7 @@
                         currentFlight.name
                     }`);
                     
+                  
 
                     changeVideoSource(`data2/${
                         currentFlight.name
@@ -176,7 +177,7 @@
 
 
                 // /////////////////////////////////////////INITIAL VALUES///////////////////////////////////////////
-                var currentFlight = elliosData[0];
+                var currentFlight = elliosData[11];
                 changeVideoSource(`data2/${
                     currentFlight.name
                 }.mp4`);
@@ -326,13 +327,12 @@
                 // wrap load code into an async function so that we can use "await"
                 async function load(currentFlight) {
 
-                    let pointclouds = window.ElliosData.map(flight => {
-                        return {
+                    let pointclouds = [{
                                 url: `data2/${
-                                flight.name
+                                currentFlight.name
                             }/metadata.json`,
                             callback: (pointcloud) => { // The name will show in the tool bar
-                                pointcloud.name = flight.name;
+                                pointcloud.name = currentFlight.name;
                                 // the material property allows for the point size, shape, color and gradient to be changed
                                 let material = pointcloud.material;
                                 material.size = 0.1;
@@ -343,15 +343,12 @@
                                 material.heightMin = -1;
                                 material.heightMax = 5.6;
                                 material.minSize = 0.2;
-                                (flight.name === currentFlight.name) ? pointcloud.visible = true : pointcloud.visible = false;
                                 // change the position, rotation and scale of the point cloud to match the position of the Laser Scan Point cloud
-
                                 // pointcloud.scale.set(1, 0.995, 1)
 
                             }
 
-                        }
-                    })
+                        }]
 
                     let promises = pointclouds.map(p => Potree.loadPointCloud(p.url));
 

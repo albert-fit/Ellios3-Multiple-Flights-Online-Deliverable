@@ -62,6 +62,7 @@
 
         <!-- This is where the VideoJS player will be displayed inside of the dragable and resizable window -->
         <div class="popup">
+            <button id="save-button">copy</button>
             <div class="popup-header">Click here to move</div>
             <!-- Create a div element with id dropdown-menu -->
             <select id="dropdown" class="dropdown-toggle">
@@ -90,7 +91,7 @@
                 */
                 var elliosData = window.ElliosData;
 
-
+              
                 // /////////////////////////////////////////DROPDOWN MENU///////////////////////////////////////////
                 var dropdown = document.getElementById("dropdown");
                 dropdown.onchange = selectFlight;
@@ -121,7 +122,7 @@
                     path = currentFlight.liveTraj.map(x => {
                         return [
                             (x.pos_x), (x.pos_y),
-                            (x.pos_z + currentFlight.rotation.z)
+                            (x.pos_z)
                         ]
                     }).map(v => new THREE.Vector3(...v));
                     let animationPath = new Potree.AnimationPath(path);
@@ -144,15 +145,30 @@
                 function selectFlight() {
                     var index = document.getElementById("dropdown").value; // Get the value of the selected option
                     currentFlight = window.ElliosData[index]; // Assign the corresponding item to the currentFlight variable
-                    for (let i = 0; i < viewer.scene.pointclouds.length; i++) { // If the name of the point cloud matches the name of the current flight, make it visible
-                        if (viewer.scene.pointclouds[i].name === currentFlight.name) {
-                            viewer.scene.pointclouds[i].visible = true;
-                            console.log(viewer.scene.pointclouds[i])
+                    // for (let i = 0; i < viewer.scene.pointclouds.length; i++) { // If the name of the point cloud matches the name of the current flight, make it visible
+                    //     if (viewer.scene.pointclouds[i].name === currentFlight.name) {
+                    //         viewer.scene.pointclouds[i].visible = true;
+                    //         console.log(viewer.scene.pointclouds[i])
 
-                        } else {
-                            viewer.scene.pointclouds[i].visible = false;
-                        }
-                    }
+                    //     } else {
+                    //         viewer.scene.pointclouds[i].visible = false;
+                    //     }
+                    // }
+                    document.getElementById("potree_sidebar_container").innerHTML = "";
+                    window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+
+                    viewer.reLoadGUI(() => {
+                    viewer.setLanguage('en');
+                    $("#menu_scene").next().show();
+                    $("#menu_tools").next().show();
+                    viewer.setClipTask(Potree.ClipTask.SHOW_OUTSIDE);
+
+                    });
+
+                    viewer.loadProject(`data2/${
+                        currentFlight.name
+                    }.json`)
+                    
 
                     // remove the previous trajectory
                     viewer.scene.scene.children = []
@@ -170,7 +186,7 @@
                         currentFlight.name
                     }.mp4`);
 
-                    viewer.scene.view.setView(currentFlight.camera[0],currentFlight.camera[1]);
+                    // viewer.scene.view.setView(currentFlight.camera[0],currentFlight.camera[1]);
 
                 }
 
@@ -180,7 +196,7 @@
                 changeVideoSource(`data2/${
                     currentFlight.name
                 }.mp4`);
-
+                
 
                 // /////////////////////////////////////////POTREE///////////////////////////////////////////////////
                 // ////////////////////////////////////////SECTION//////////////////////////////////////////////////
@@ -193,12 +209,15 @@
                 // You can load multiple viewers and have the 'split-screen effect'
                 window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
 
+                viewer.loadProject("data2/085-north-F1-00.json");
 
+                console.log(viewer.scene)
                 // We can set initial parameters for the viewer:
 
                 // Eye Dome Lighting makes each point have a shadow and it helps with the 3D effect
                 viewer.setEDLEnabled(true);
-                viewer.setEDLOpacity(0.75);
+                // viewer.setEDLOpacity(0.75);
+                viewer.setClipTask(Potree.ClipTask.SHOW_OUTSIDE);
                 viewer.setEDLStrength(0.2);
 
                 // The Field of view represents the angle of the camera lens. The higher the angle, the more you can see
@@ -207,6 +226,7 @@
                 // The higher the loading point budget, the more detail. It goes between 1_000_000 and 10_000_000. Careful with this number, it takes longer to load.
                 // If you want to load more points, you can increase the number of points in the interface after loading.
                 viewer.setPointBudget(8_000_000);
+
 
                 // The point size is the size of each point. The higher the number, the bigger the points. Some really dense point clouds benefit of a lower point size.
                 viewer.setMinNodeSize(1);
@@ -243,6 +263,7 @@
                 // we import the trajectory data from the .js file and then:
                 // 1. map the data to an array of vectors
                 // 2. map the array of vectors to an array of THREE.Vector3 objects
+                sceneTrajectory(currentFlight);
                 var liveTraj = currentFlight.liveTraj;
                 var path = currentFlight.liveTraj.map(x => {
                     return [
@@ -324,77 +345,107 @@
                 // //////////LOAD THE POINT CLOUDS////////////
 
                 // wrap load code into an async function so that we can use "await"
-                async function load(currentFlight) {
+                // async function load(currentFlight) {
 
-                    let pointclouds = window.ElliosData.map(flight => {
-                        return {
-                                url: `data2/${
-                                flight.name
-                            }/metadata.json`,
-                            callback: (pointcloud) => { // The name will show in the tool bar
-                                pointcloud.name = flight.name;
-                                // the material property allows for the point size, shape, color and gradient to be changed
-                                let material = pointcloud.material;
-                                material.size = 0.1;
-                                material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
-                                material.shape = Potree.PointShape.CIRCLE;
-                                material.activeAttributeName = "elevation";
-                                material.gradient = Potree.Gradients.SPECTRAL;
-                                material.heightMin = -1;
-                                material.heightMax = 5.6;
-                                material.minSize = 0.2;
-                                (flight.name === currentFlight.name) ? pointcloud.visible = true : pointcloud.visible = false;
-                                // change the position, rotation and scale of the point cloud to match the position of the Laser Scan Point cloud
+                //     let pointclouds = [{
+                //                 url: `data2/${
+                //                 currentFlight.name
+                //             }/metadata.json`,
+                //             callback: (pointcloud) => { // The name will show in the tool bar
+                //                 pointcloud.name = currentFlight.name;
+                //                 // the material property allows for the point size, shape, color and gradient to be changed
+                //                 let material = pointcloud.material;
+                //                 material.size = 0.1;
+                //                 material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+                //                 material.shape = Potree.PointShape.CIRCLE;
+                //                 material.activeAttributeName = "elevation";
+                //                 material.gradient = Potree.Gradients.SPECTRAL;
+                //                 material.heightMin = -1;
+                //                 material.heightMax = 5.6;
+                //                 material.minSize = 0.2;
+                //                 // change the position, rotation and scale of the point cloud to match the position of the Laser Scan Point cloud
+                //                 // pointcloud.scale.set(1, 0.995, 1)
 
-                                // pointcloud.scale.set(1, 0.995, 1)
+                //             }
 
-                            }
+                //         }]
 
-                        }
-                    })
+                //     let promises = pointclouds.map(p => Potree.loadPointCloud(p.url));
 
-                    let promises = pointclouds.map(p => Potree.loadPointCloud(p.url));
+                //     // now iterate over all promises in order
+                //     for (let i = 0; i < promises.length; i++) { // wait until this point cloud is loaded before processing the next one
+                //         let pointcloud = (await promises[i]).pointcloud;
+                //         pointclouds[i].callback(pointcloud);
 
-                    // now iterate over all promises in order
-                    for (let i = 0; i < promises.length; i++) { // wait until this point cloud is loaded before processing the next one
-                        let pointcloud = (await promises[i]).pointcloud;
-                        pointclouds[i].callback(pointcloud);
-
-                        // add the point cloud to the scene
-                        viewer.scene.addPointCloud(pointcloud);
-                    };
+                //         // add the point cloud to the scene
+                //         viewer.scene.addPointCloud(pointcloud);
+                //     };
 
 
-                    // //////LIVE TRAJECTORY////////
-                    // if there is a live trajectory, create an animation path and make the camera follow it
-                    {
-                       sceneTrajectory(currentFlight);
-                    }
+                //     // //////LIVE TRAJECTORY////////
+                //     // if there is a live trajectory, create an animation path and make the camera follow it
+                //     {
+                //        sceneTrajectory(currentFlight);
+                //     }
 
 
-                    // /////CLIPPING BOXES///////////
-                    // set clip task to inside
-                    viewer.setClipTask(Potree.ClipTask.SHOW_OUTSIDE);
-                    // start loading all point clouds asynchronously, get a promise for each one that resolves when it's loaded
+                //     // /////CLIPPING BOXES///////////
+                //     // set clip task to inside
+                //     viewer.setClipTask(Potree.ClipTask.SHOW_OUTSIDE);
+                //     // start loading all point clouds asynchronously, get a promise for each one that resolves when it's loaded
 
-                    // { // VOLUME visible
-                    //     let volume = new Potree.BoxVolume();
-                    //     volume.name = "Vertical Slice";
-                    //     volume.scale.set(3.959, 7.058, 18.901);
-                    //     volume.position.set(2.836, 1.040, -1.720);
-                    //     volume.clip = true;
-                    //     viewer.scene.addVolume(volume);
-                    // }
+                //     // { // VOLUME visible
+                //     //     let volume = new Potree.BoxVolume();
+                //     //     volume.name = "Vertical Slice";
+                //     //     volume.scale.set(3.959, 7.058, 18.901);
+                //     //     volume.position.set(2.836, 1.040, -1.720);
+                //     //     volume.clip = true;
+                //     //     viewer.scene.addVolume(volume);
+                //     // }
 
 
-                    // /////CAMERA POSITION////////
+                //     // /////CAMERA POSITION////////
 
-                    viewer.scene.view.setView(currentFlight.camera[0],currentFlight.camera[1]);
+                //     viewer.scene.view.setView(currentFlight.camera[0],currentFlight.camera[1]);
 
-                }
+                // }
 
-                // /////////////////////////////////////////INITIAL POINT CLOUD LOAD///////////////////////////////////////////
-                load(currentFlight);
+                // // /////////////////////////////////////////INITIAL POINT CLOUD LOAD///////////////////////////////////////////
+                // load(currentFlight);
+
+
+                  // /////////////////////////////////////////SAVE BUTTON///////////////////////////////////////////
+                // Define a function that will copy the current flight name to the clipboard
+
+
+
+                // define copyToClipboard function
+                document.addEventListener('DOMContentLoaded', function () {
+            // Add a click event listener to the "save-button" element
+            document.getElementById('save-button').addEventListener('click', function () {
+                // Call viewer.saveProject() and store the result in a variable
+                const saveResult = viewer.saveProject();
+
+                // Create a temporary textarea element to copy the result to the clipboard
+                const tempTextarea = document.createElement('textarea');
+                tempTextarea.value = JSON.stringify(saveResult);
+
+                // Append the textarea to the document body
+                document.body.appendChild(tempTextarea);
+
+                // Select the content of the textarea
+                tempTextarea.select();
+
+                // Copy the selected text to the clipboard
+                document.execCommand('copy');
+
+                // Remove the temporary textarea
+                document.body.removeChild(tempTextarea);
+
+                // Optionally, provide user feedback (e.g., alert)
+                alert('Project saved and copied to clipboard!');
+            });
+        });
             </script>
         </body>
     </body>
